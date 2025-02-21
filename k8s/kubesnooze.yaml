@@ -1,0 +1,55 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubesnooze
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubesnooze
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubesnooze
+subjects:
+  - kind: ServiceAccount
+    name: kubesnooze
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: kubesnooze
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubesnooze
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubesnooze
+  template:
+    metadata:
+      labels:
+        app: kubesnooze
+    spec:
+      serviceAccountName: kubesnooze
+      nodeSelector:
+        sleep-target: "true"
+      containers:
+        - name: kubesnooze
+          image: ghcr.io/FlomoN/kubesnooze:latest
+          imagePullPolicy: Always
+          env:
+            - name: WATCHED_DEPLOYMENTS
+              value: "default/app1,default/app2" # Example value, modify as needed
+            - name: TIMER_DURATION
+              value: "1h" # Example value, modify as needed
