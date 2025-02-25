@@ -92,8 +92,18 @@ func (r *DeploymentReconciler) startTimer() {
 	r.timerStarted = true
 	go func() {
 		<-r.timer.C
-		fmt.Println("Timer expired")
+		sleepServer()
 	}()
+}
+
+func sleepServer() error {
+	logger := log.FromContext(context.Background())
+	logger.Info("Sleeping server")
+	err := os.WriteFile("/sys/power/state", []byte("mem"), 0644)
+	if err != nil {
+		logger.Error(err, "failed to sleep server")
+	}
+	return nil
 }
 
 func loadEnv() error {
