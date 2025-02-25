@@ -46,7 +46,7 @@ Ensure to modify the environment variables in `k8s/kubesnooze.yaml` to specify w
 2. It watches the specified deployments for replica changes
 3. When all watched deployments have 0 replicas, it logs: "All watched deployments scaled to 0"
 4. A timer starts with the configured duration
-5. When the timer expires, it logs: "Timer expired"
+5. When the timer expires, it sends "mem" to `/sys/power/state` to suspend the machine
 6. If any deployment scales up before the timer expires, the timer is cancelled
 
 ## License
