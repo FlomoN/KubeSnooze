@@ -48,24 +48,27 @@ spec:
     spec:
       serviceAccountName: kubesnooze
       nodeSelector:
-        sleep-target: "true"
-
+        nodetype: "gpu"
+      tolerations:
+        - key: "gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
       volumes:
         - name: system-power
           hostPath:
-            - path: /sys/power/state
-              type: File
+            path: /sys/power/state
+            type: File
       containers:
         - name: kubesnooze
-          image: ghcr.io/FlomoN/kubesnooze:latest
+          image: ghcr.io/flomon/kubesnooze:main
           imagePullPolicy: Always
           securityContext:
             privileged: true
           env:
             - name: WATCHED_DEPLOYMENTS
-              value: "default/app1,default/app2" # Example value, modify as needed
+              value: "ai/comfyui,ai/kokoro,ai/ollama,ai/openedai-speech,ai/stablediffusionwebui" # Example value, modify as needed
             - name: TIMER_DURATION
-              value: "1h" # Example value, modify as needed
+              value: "30m" # Example value, modify as needed
           volumeMounts:
             - name: system-power
               mountPath: /sys/power/state
