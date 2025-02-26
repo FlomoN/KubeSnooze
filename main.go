@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -152,8 +153,20 @@ func main() {
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme: scheme,
+		Scheme:                 scheme,
+		HealthProbeBindAddress: ":8081",
+		WebhookServer:          nil, // Disable webhook server
 	})
+
+	// Add readiness and health check endpoints
+	if err := mgr.AddHealthzCheck("healthz", func(_ *http.Request) error { return nil }); err != nil {
+		logger.Error(err, "unable to set up health check")
+		os.Exit(1)
+	}
+	if err := mgr.AddReadyzCheck("readyz", func(_ *http.Request) error { return nil }); err != nil {
+		logger.Error(err, "unable to set up ready check")
+		os.Exit(1)
+	}
 	if err != nil {
 		logger.Error(err, "unable to start manager")
 		os.Exit(1)
