@@ -4,14 +4,14 @@ Because even clusters need a nap.
 
 ![KubeSnooze Logo](KubeSnooze.png)
 
-KubeSnooze is a Kubernetes controller that watches specified deployments for their replica count. When all watched deployments are scaled to 0, it starts a configurable timer. After the timer expires, it logs a message.
+KubeSnooze is a Kubernetes controller that watches specified deployments for their replica count. When all watched deployments are scaled to 0, it starts a configurable timer. After the timer expires, it sends the node to S3 sleep.
 
 ## Features
 
 - Watch multiple deployments across different namespaces
 - Configurable timer duration
 - Simple environment variable based configuration
-- Logs when all deployments scale to 0 and when timer expires
+- Sleeps node all deployments scale to 0 and when timer expires
 
 ## Configuration
 
