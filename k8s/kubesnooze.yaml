@@ -32,12 +32,11 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: DaemonSet
 metadata:
   name: kubesnooze
   namespace: kubesnooze
 spec:
-  replicas: 1
   selector:
     matchLabels:
       app: kubesnooze
@@ -68,7 +67,7 @@ spec:
             - name: WATCHED_DEPLOYMENTS
               value: "ai/comfyui,ai/kokoro,ai/ollama,ai/openedai-speech,ai/stablediffusionwebui" # Example value, modify as needed
             - name: TIMER_DURATION
-              value: "30m" # Example value, modify as needed
+              value: "5m" # Example value, modify as needed
           volumeMounts:
             - name: system-power
               mountPath: /sys/power/state
