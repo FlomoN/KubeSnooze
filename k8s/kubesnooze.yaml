@@ -17,6 +17,12 @@ rules:
   - apiGroups: ["apps"]
     resources: ["deployments"]
     verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "patch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -68,6 +74,10 @@ spec:
               value: "ai/comfyui,ai/kokoro,ai/ollama,ai/openedai-speech,ai/stablediffusionwebui" # Example value, modify as needed
             - name: TIMER_DURATION
               value: "5m" # Example value, modify as needed
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
           volumeMounts:
             - name: system-power
               mountPath: /sys/power/state

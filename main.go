@@ -11,6 +11,7 @@ import (
 
 	"github.com/joho/godotenv"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -93,6 +94,7 @@ func (r *DeploymentReconciler) startTimer() {
 	r.timerStarted = true
 	go func() {
 		<-r.timer.C
+		drainNode(context.Background(), r.Client)
 		sleepServer()
 	}()
 }
@@ -105,6 +107,69 @@ func sleepServer() error {
 		logger.Error(err, "failed to sleep server")
 	}
 	return nil
+}
+
+func drainNode(ctx context.Context, c client.Client) error {
+    logger := log.FromContext(ctx)
+    nodeName := os.Getenv("NODE_NAME")
+    if nodeName == "" {
+        return fmt.Errorf("NODE_NAME not set, cannot drain node")
+    }
+
+    // 1. Cordon the node
+    var node corev1.Node
+    if err := c.Get(ctx, client.ObjectKey{Name: nodeName}, &node); err != nil {
+        return err
+    }
+    patch := client.MergeFrom(node.DeepCopy())
+    node.Spec.Unschedulable = true
+    if err := c.Patch(ctx, &node, patch); err != nil {
+        return fmt.Errorf("failed to cordon node: %w", err)
+    }
+    logger.Info("Node cordoned", "node", nodeName)
+
+    // 2. Evict all evictable pods
+    var podList corev1.PodList
+    if err := c.List(ctx, &podList, client.MatchingFields{"spec.nodeName": nodeName}); err != nil {
+        return err
+    }
+    // Delete non-DaemonSet pods
+		for _, pod := range podList.Items {
+				if isDaemonSetPod(&pod) || pod.DeletionTimestamp != nil {
+						continue
+				}
+				c.Delete(ctx, &pod)
+		}
+    logger.Info("Node drained", "node", nodeName)
+    return nil
+}
+
+func isDaemonSetPod(pod *corev1.Pod) bool {
+    for _, owner := range pod.OwnerReferences {
+        if owner.Kind == "DaemonSet" {
+            return true
+        }
+    }
+    return false
+}
+
+func uncordonNode(ctx context.Context, c client.Client) error {
+    nodeName := os.Getenv("NODE_NAME")
+		logger := log.FromContext(ctx)
+    var node corev1.Node
+    if err := c.Get(ctx, client.ObjectKey{Name: nodeName}, &node); err != nil {
+				logger.Error(err, "failed to get node for uncordoning", "node", nodeName)
+        return err
+    }
+    if !node.Spec.Unschedulable {
+				logger.Info("Node already unschedulable=false, skipping uncordon", "node", nodeName)
+        return nil // already schedulable
+    }
+    patch := client.MergeFrom(node.DeepCopy())
+		logger.Info("Uncordoning node", "node", nodeName)
+    node.Spec.Unschedulable = false
+
+    return c.Patch(ctx, &node, patch)
 }
 
 func loadEnv() error {
@@ -157,6 +222,16 @@ func main() {
 		HealthProbeBindAddress: ":8081",
 		WebhookServer:          nil, // Disable webhook server
 	})
+
+	directClient, err := client.New(ctrl.GetConfigOrDie(), client.Options{Scheme: scheme})
+	if err != nil {
+			logger.Error(err, "failed to create direct client")
+			os.Exit(1)
+	}
+	if err := uncordonNode(context.Background(), directClient); err != nil {
+			logger.Error(err, "failed to uncordon node on startup")
+			// non-fatal — log and continue
+	}
 
 	// Add readiness and health check endpoints
 	if err := mgr.AddHealthzCheck("healthz", func(_ *http.Request) error { return nil }); err != nil {
