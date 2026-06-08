@@ -19,7 +19,7 @@ rules:
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["nodes"]
-    verbs: ["get", "patch"]
+    verbs: ["get", "patch", "list", "watch"]
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["get", "list", "watch"]

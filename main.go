@@ -94,8 +94,15 @@ func (r *DeploymentReconciler) startTimer() {
 	r.timerStarted = true
 	go func() {
 		<-r.timer.C
+		r.timerStarted = false
 		drainNode(context.Background(), r.Client)
 		sleepServer()
+		// sleepServer blocks until the machine wakes from suspend.
+		// The container resumes here rather than restarting, so we must
+		// uncordon the node explicitly instead of relying on the startup path.
+		if err := uncordonNode(context.Background(), r.Client); err != nil {
+			log.FromContext(context.Background()).Error(err, "failed to uncordon node after wake")
+		}
 	}()
 }
 
