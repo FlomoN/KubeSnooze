@@ -100,8 +100,20 @@ func (r *DeploymentReconciler) startTimer() {
 		// sleepServer blocks until the machine wakes from suspend.
 		// The container resumes here rather than restarting, so we must
 		// uncordon the node explicitly instead of relying on the startup path.
-		if err := uncordonNode(context.Background(), r.Client); err != nil {
-			log.FromContext(context.Background()).Error(err, "failed to uncordon node after wake")
+		// The API server may not be reachable immediately after wake, so retry.
+		uncordonLogger := log.FromContext(context.Background())
+		for attempt := 1; ; attempt++ {
+			err := uncordonNode(context.Background(), r.Client)
+			if err == nil {
+				break
+			}
+			if attempt >= 10 {
+				uncordonLogger.Error(err, "failed to uncordon node after wake, giving up", "attempts", attempt)
+				break
+			}
+			backoff := time.Duration(attempt*attempt) * 100 * time.Millisecond
+			uncordonLogger.Error(err, "failed to uncordon node after wake, retrying", "attempt", attempt, "backoff", backoff.String())
+			time.Sleep(backoff)
 		}
 	}()
 }
